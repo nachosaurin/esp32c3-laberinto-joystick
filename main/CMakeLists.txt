@@ -1,17 +1,2 @@
-idf_component_register(
-    SRCS
-        "main.c"
-        "maze.c"
-        "joystick.c"
-        "uart_view.c"
-        "asm_collision.S"
-        "asm_joystick.S"
-    INCLUDE_DIRS
-        "."
-    REQUIRES
-        esp_adc
-        esp_common
-        esp_driver_uart
-        esp_driver_usb_serial_jtag
-        freertos
-)
+idf_component_register(SRCS "main.c"
+                    INCLUDE_DIRS ".")
