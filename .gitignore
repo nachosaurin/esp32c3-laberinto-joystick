@@ -9,4 +9,5 @@ __pycache__/
 
 .vscode/ipch/
 .vscode/.browse.c_cpp.db*
-.vscode/*.log
+.vscode/*.lo
+terminal_teclado
