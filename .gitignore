@@ -1,13 +1,16 @@
-build/
-managed_components/
-dependencies.lock
-sdkconfig.old
+/build*/
+/managed_components/
+/dependencies.lock
+/.codex_check/
+/sdkconfig
+/sdkconfig.old
 
 *.log
-*.pyc
+*.py[cod]
 __pycache__/
+.pytest_cache/
 
 .vscode/ipch/
-.vscode/.browse.c_cpp.db*
+.vscode/.browse_c_cpp.db*
 .vscode/*.lo
 terminal_teclado
