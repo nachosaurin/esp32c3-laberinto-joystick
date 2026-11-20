@@ -16,6 +16,12 @@ meta (`M`). La tecla R (en el monitor) reinicia la partida.
 El pin SW (boton) no se usa. Si usas otros pines, cambia los `#define JOY_...` al principio de `main/main.c`.
 En la ESP32-C3 conviene usar GPIO0 a GPIO4 para los ejes (son los del ADC1).
 
+## LED de la placa (assembler)
+
+`main/led.S` maneja el LED de la placa (GPIO8 en la ESP32-C3 Super Mini, activo en bajo)
+escribiendo directo en los registros del GPIO. Parpadea con cada "Movimiento bloqueado"
+y queda prendido al completar el laberinto. La logica del juego y el ADC siguen en C.
+
 ## Compilar y cargar
 
 1. Abrir la carpeta con VS Code + extension ESP-IDF (o la terminal "ESP-IDF 5.2 CMD").
