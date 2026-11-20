@@ -1,35 +1,35 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
+# Laberinto en consola con ESP32-C3 + joystick
 
-# _Sample project_
+Proyecto ESP-IDF (v5.2) para ESP32-C3. El laberinto se dibuja en la consola
+serie y el jugador (`P`) se mueve con un joystick analogico o con W A S D
+hasta llegar a la meta (`M`).
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+## Conexion del joystick (KY-023)
 
-This is the simplest buildable example. The example is used by command `idf.py create-project`
-that copies the project to user specified path and set it's name. For more information follow the [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project)
+| Joystick | ESP32-C3 |
+| -------- | -------- |
+| GND      | GND      |
+| +5V/VCC  | **3V3** (no 5 V) |
+| VRx      | GPIO0 (ADC1 canal 0) |
+| VRy      | GPIO1 (ADC1 canal 1) |
+| SW       | GPIO3 (reiniciar) |
 
+Si usas otros pines, cambia los `#define JOY_...` al principio de `main/main.c`.
+En la ESP32-C3 conviene usar GPIO0 a GPIO4 para los ejes (son los del ADC1).
 
+## Compilar y cargar
 
-## How to use example
-We encourage the users to use the example as a template for the new projects.
-A recommended way is to follow the instructions on a [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project).
+1. Abrir la carpeta con VS Code + extension ESP-IDF (o la terminal "ESP-IDF 5.2 CMD").
+2. Elegir el target `esp32c3` y el puerto COM correcto.
+3. `idf.py build flash monitor`
 
-## Example folder contents
+## Jugar con el teclado (opcional)
 
-The project **sample_project** contains one source file in C language [main.c](main/main.c). The file is located in folder [main](main).
-
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt`
-files that provide set of directives and instructions describing the project's source files and targets
-(executable, library, or both). 
-
-Below is short explanation of remaining files in the project folder.
+Cerra el monitor de ESP-IDF (el puerto solo lo puede usar un programa a la vez) y corre:
 
 ```
-├── CMakeLists.txt
-├── main
-│   ├── CMakeLists.txt
-│   └── main.c
-└── README.md                  This is the file you are currently reading
+pip install pyserial
+python terminal_teclado.py COM3
 ```
-Additionally, the sample project contains Makefile and component.mk files, used for the legacy Make based build system. 
-They are not used or needed when building with CMake and idf.py.
+
+Teclas: W A S D para mover, R para reiniciar, Q para salir.

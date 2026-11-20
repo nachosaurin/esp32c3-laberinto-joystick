@@ -1,12 +1,24 @@
+import sys
 import serial
 import threading
 import msvcrt
 import time
 
-puerto = "COM3"
+# El puerto puede cambiar (COM3, COM4, COM5...) si conectas la placa en
+# otro USB. Fijate cual es en el Administrador de dispositivos > Puertos.
+# Uso: python terminal_teclado.py COM4
+puerto = sys.argv[1] if len(sys.argv) > 1 else "COM3"
 baudios = 115200
 
-ser = serial.Serial(puerto, baudios, timeout=0.1)
+try:
+    ser = serial.Serial(puerto, baudios, timeout=0.1)
+except serial.SerialException as e:
+    print(f"No se pudo abrir {puerto}: {e}")
+    print("- Si dice 'Acceso denegado': cerra el monitor de ESP-IDF (o cualquier")
+    print("  otro programa que este usando el puerto) y volve a intentar.")
+    print("- Si dice que no existe: revisa en que COM quedo la placa y pasalo")
+    print("  como argumento, por ejemplo: python terminal_teclado.py COM4")
+    sys.exit(1)
 
 def leer_esp():
     while True:
