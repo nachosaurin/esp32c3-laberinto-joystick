@@ -97,6 +97,10 @@ void mover(int dx, int dy)
 
     if (laberinto[ny][nx] == '|')
     {
+        /* Redibujamos el laberinto (eso borra la pantalla) y abajo
+         * ponemos el aviso. Asi el cartel queda siempre en el mismo
+         * lugar en vez de ir agregando lineas nuevas. */
+        imprimir_laberinto();
         printf("\nMovimiento bloqueado\n");
         fflush(stdout);
         return;
