@@ -60,15 +60,20 @@ static adc_oneshot_unit_handle_t adc;
 
 void imprimir_laberinto()
 {
-    printf("\033[2J\033[H");
-    printf("Mueve el joystick para jugar. Boton del joystick o tecla R para reiniciar.\n\n");
+    /* \033[H vuelve el cursor arriba de todo y escribimos ENCIMA del
+     * laberinto anterior. Antes usabamos \033[2J (borrar toda la
+     * pantalla) en cada paso: la consola guardaba cada pantalla vieja
+     * en el historial y se iba poniendo cada vez mas lenta. */
+    printf("\033[H");
+    printf("Mueve el joystick para jugar. Boton del joystick o tecla R para reiniciar.\033[K\n\n");
 
     for (int i = 0; i < ALTO; i++)
     {
-        printf("%s\n", laberinto[i]);
+        printf("%s\033[K\n", laberinto[i]);   /* \033[K borra el resto de la linea */
     }
 
-    printf("\nMovimientos validos: %d\n", movimientos);
+    printf("\nMovimientos validos: %d\033[K\n", movimientos);
+    printf("\033[J");   /* borra lo que haya quedado mas abajo (avisos viejos) */
     fflush(stdout);
 }
 
@@ -82,6 +87,7 @@ void reiniciar()
     terminado = 0;
     aviso_mostrado = 0;
 
+    printf("\033[2J");   /* solo al reiniciar borramos toda la pantalla */
     imprimir_laberinto();
 }
 
