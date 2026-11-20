@@ -61,7 +61,7 @@ static adc_oneshot_unit_handle_t adc;
 void imprimir_laberinto()
 {
     printf("\033[2J\033[H");
-    printf("Mueve el joystick para jugar. Aprieta el boton del joystick para reiniciar.\n\n");
+    printf("Mueve el joystick para jugar. Boton del joystick o tecla R para reiniciar.\n\n");
 
     for (int i = 0; i < ALTO; i++)
     {
@@ -89,7 +89,7 @@ void mover(int dx, int dy)
 {
     if (terminado)
     {
-        printf("\nPartida terminada. Aprieta el boton del joystick para reiniciar\n");
+        printf("\nPartida terminada. Boton del joystick o tecla R para reiniciar\n");
         fflush(stdout);
         return;
     }
@@ -127,7 +127,7 @@ void mover(int dx, int dy)
         imprimir_laberinto();
         printf("\nLaberinto completado\n");
         printf("Cantidad de movimientos validos: %d\n", movimientos);
-        printf("Aprieta el boton del joystick para reiniciar\n");
+        printf("Boton del joystick o tecla R para reiniciar\n");
         fflush(stdout);
         return;
     }
@@ -216,6 +216,9 @@ void procesar_accion(int accion)
 
 void app_main(void)
 {
+    /* Sin buffer: cada tecla llega apenas se aprieta */
+    setvbuf(stdin, NULL, _IONBF, 0);
+
     iniciar_joystick();
     reiniciar();
 
@@ -223,7 +226,17 @@ void app_main(void)
 
     while (1)
     {
-        /* Joystick. Solo movemos cuando cambia de posicion, asi un
+        /* 1) Tecla R para reiniciar. getchar() NO espera: si no se
+         *    apreto nada devuelve EOF enseguida y seguimos con el
+         *    joystick. Cualquier otra tecla se ignora. */
+        int tecla = getchar();
+        if (tecla == 'r' || tecla == 'R')
+        {
+            reiniciar();
+        }
+        clearerr(stdin);
+
+        /* 2) Joystick. Solo movemos cuando cambia de posicion, asi un
          *    empujon = un paso. Para dar otro paso hay que volver al
          *    centro (o mover hacia otro lado). */
         int joy = leer_joystick();

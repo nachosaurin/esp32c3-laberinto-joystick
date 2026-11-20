@@ -2,7 +2,7 @@
 
 Proyecto ESP-IDF (v5.2) para ESP32-C3. El laberinto se dibuja en la consola
 serie y el jugador (`P`) se mueve con un joystick analogico hasta llegar a la
-meta (`M`). El boton del joystick reinicia la partida.
+meta (`M`). El boton del joystick (o la tecla R en el monitor) reinicia la partida.
 
 ## Conexion del joystick (KY-023)
 
