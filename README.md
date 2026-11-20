@@ -1,8 +1,8 @@
 # Laberinto en consola con ESP32-C3 + joystick
 
 Proyecto ESP-IDF (v5.2) para ESP32-C3. El laberinto se dibuja en la consola
-serie y el jugador (`P`) se mueve con un joystick analogico o con W A S D
-hasta llegar a la meta (`M`).
+serie y el jugador (`P`) se mueve con un joystick analogico hasta llegar a la
+meta (`M`). El boton del joystick reinicia la partida.
 
 ## Conexion del joystick (KY-023)
 
@@ -22,14 +22,3 @@ En la ESP32-C3 conviene usar GPIO0 a GPIO4 para los ejes (son los del ADC1).
 1. Abrir la carpeta con VS Code + extension ESP-IDF (o la terminal "ESP-IDF 5.2 CMD").
 2. Elegir el target `esp32c3` y el puerto COM correcto.
 3. `idf.py build flash monitor`
-
-## Jugar con el teclado (opcional)
-
-Cerra el monitor de ESP-IDF (el puerto solo lo puede usar un programa a la vez) y corre:
-
-```
-pip install pyserial
-python terminal_teclado.py COM3
-```
-
-Teclas: W A S D para mover, R para reiniciar, Q para salir.

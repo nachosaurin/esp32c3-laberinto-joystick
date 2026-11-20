@@ -29,12 +29,6 @@
 #define UMBRAL_BAJO   1000
 #define UMBRAL_ALTO   3000
 
-/* Pone 0 si todavia no conectaste el joystick. Con los pines al aire
- * el ADC lee valores al azar y el jugador se "mueve solo" (y aparecen
- * muchos carteles de Movimiento bloqueado). Con 0 se juega solo con
- * el teclado. */
-#define USAR_JOYSTICK 1
-
 #define ANCHO 20
 #define ALTO 10
 
@@ -67,7 +61,7 @@ static adc_oneshot_unit_handle_t adc;
 void imprimir_laberinto()
 {
     printf("\033[2J\033[H");
-    printf("Mueve el joystick (o usa W A S D). Boton del joystick o R para reiniciar.\n\n");
+    printf("Mueve el joystick para jugar. Aprieta el boton del joystick para reiniciar.\n\n");
 
     for (int i = 0; i < ALTO; i++)
     {
@@ -95,7 +89,7 @@ void mover(int dx, int dy)
 {
     if (terminado)
     {
-        printf("\nPartida terminada. Presiona R para reiniciar\n");
+        printf("\nPartida terminada. Aprieta el boton del joystick para reiniciar\n");
         fflush(stdout);
         return;
     }
@@ -133,7 +127,7 @@ void mover(int dx, int dy)
         imprimir_laberinto();
         printf("\nLaberinto completado\n");
         printf("Cantidad de movimientos validos: %d\n", movimientos);
-        printf("Presiona R para reiniciar\n");
+        printf("Aprieta el boton del joystick para reiniciar\n");
         fflush(stdout);
         return;
     }
@@ -175,7 +169,7 @@ void iniciar_joystick()
     ESP_ERROR_CHECK(gpio_config(&cfg_boton));
 }
 
-/* Lee el joystick y devuelve la "tecla" equivalente:
+/* Lee el joystick y devuelve una letra segun hacia donde esta inclinado:
  * 'w', 'a', 's', 'd', 'r' (boton) o 0 si esta en el centro. */
 int leer_joystick()
 {
@@ -196,25 +190,25 @@ int leer_joystick()
     return 0;
 }
 
-void procesar_tecla(int tecla)
+void procesar_accion(int accion)
 {
-    if (tecla == 'w' || tecla == 'W')
+    if (accion == 'w')
     {
         mover(0, -1);
     }
-    else if (tecla == 's' || tecla == 'S')
+    else if (accion == 's')
     {
         mover(0, 1);
     }
-    else if (tecla == 'a' || tecla == 'A')
+    else if (accion == 'a')
     {
         mover(-1, 0);
     }
-    else if (tecla == 'd' || tecla == 'D')
+    else if (accion == 'd')
     {
         mover(1, 0);
     }
-    else if (tecla == 'r' || tecla == 'R')
+    else if (accion == 'r')
     {
         reiniciar();
     }
@@ -222,34 +216,20 @@ void procesar_tecla(int tecla)
 
 void app_main(void)
 {
-    setvbuf(stdin, NULL, _IONBF, 0);
-
-    if (USAR_JOYSTICK)
-    {
-        iniciar_joystick();
-    }
+    iniciar_joystick();
     reiniciar();
 
     int anterior = 0;
 
     while (1)
     {
-        /* 1) Teclado (por la consola serie). Si no hay nada, getchar
-         *    devuelve EOF y no hacemos nada. */
-        int tecla = getchar();
-        if (tecla != EOF)
-        {
-            procesar_tecla(tecla);
-        }
-        clearerr(stdin);
-
-        /* 2) Joystick. Solo movemos cuando cambia de posicion, asi un
+        /* Joystick. Solo movemos cuando cambia de posicion, asi un
          *    empujon = un paso. Para dar otro paso hay que volver al
          *    centro (o mover hacia otro lado). */
-        int joy = USAR_JOYSTICK ? leer_joystick() : 0;
+        int joy = leer_joystick();
         if (joy != 0 && joy != anterior)
         {
-            procesar_tecla(joy);
+            procesar_accion(joy);
         }
         anterior = joy;
 
