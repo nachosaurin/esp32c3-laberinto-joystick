@@ -35,6 +35,20 @@
  * el teclado. */
 #define USAR_JOYSTICK 1
 
+/* Si los controles quedan al reves, cambia estos valores (0 o 1) y
+ * volve a compilar y flashear:
+ *   INVERTIR_X        1 = izquierda y derecha cambiadas
+ *   INVERTIR_Y        1 = arriba y abajo cambiados
+ *   INTERCAMBIAR_EJES 1 = mover arriba/abajo mueve a los costados
+ *                         (pasa si el joystick esta montado de costado) */
+#define INVERTIR_X        1
+#define INVERTIR_Y        1
+#define INTERCAMBIAR_EJES 0
+
+/* Si mantenes el joystick inclinado, el jugador sigue avanzando un
+ * paso cada REPETIR_MS milisegundos (asi no hay que soltarlo cada vez). */
+#define REPETIR_MS 250
+
 #define ANCHO 20
 #define ALTO 10
 
@@ -66,15 +80,19 @@ static adc_oneshot_unit_handle_t adc;
 
 void imprimir_laberinto()
 {
-    printf("\033[2J\033[H");
-    printf("Mueve el joystick (o usa W A S D). Boton del joystick o R para reiniciar.\n\n");
+    /* \033[H lleva el cursor arriba de todo y escribimos encima de lo
+     * anterior (en vez de borrar toda la pantalla con \033[2J, que en
+     * algunas consolas va cada vez mas lento). */
+    printf("\033[H");
+    printf("Mueve el joystick (o usa W A S D). Boton del joystick o R para reiniciar.\033[K\n\n");
 
     for (int i = 0; i < ALTO; i++)
     {
-        printf("%s\n", laberinto[i]);
+        printf("%s\033[K\n", laberinto[i]);   /* \033[K borra el resto de la linea */
     }
 
-    printf("\nMovimientos validos: %d\n", movimientos);
+    printf("\nMovimientos validos: %d\033[K\n", movimientos);
+    printf("\033[J");   /* borra lo que haya quedado mas abajo */
     fflush(stdout);
 }
 
@@ -88,6 +106,7 @@ void reiniciar()
     terminado = 0;
     aviso_mostrado = 0;
 
+    printf("\033[2J");   /* al reiniciar si borramos toda la pantalla */
     imprimir_laberinto();
 }
 
@@ -186,8 +205,15 @@ int leer_joystick()
 
     if (gpio_get_level(JOY_PIN_BOTON) == 0) return 'r';
 
-    /* Si en tu joystick los ejes salen al reves (arriba mueve abajo,
-     * etc.), intercambia las letras de estas lineas. */
+    if (INTERCAMBIAR_EJES)
+    {
+        int aux = x;
+        x = y;
+        y = aux;
+    }
+    if (INVERTIR_X) x = 4095 - x;
+    if (INVERTIR_Y) y = 4095 - y;
+
     if (y < UMBRAL_BAJO) return 'w';
     if (y > UMBRAL_ALTO) return 's';
     if (x < UMBRAL_BAJO) return 'a';
@@ -231,6 +257,7 @@ void app_main(void)
     reiniciar();
 
     int anterior = 0;
+    int ciclos_mantenido = 0;   /* cuantas vueltas lleva inclinado igual */
 
     while (1)
     {
@@ -243,13 +270,22 @@ void app_main(void)
         }
         clearerr(stdin);
 
-        /* 2) Joystick. Solo movemos cuando cambia de posicion, asi un
-         *    empujon = un paso. Para dar otro paso hay que volver al
-         *    centro (o mover hacia otro lado). */
+        /* 2) Joystick. Al inclinarlo da un paso enseguida. Si lo
+         *    mantenes inclinado, repite un paso cada REPETIR_MS. */
         int joy = USAR_JOYSTICK ? leer_joystick() : 0;
         if (joy != 0 && joy != anterior)
         {
             procesar_tecla(joy);
+            ciclos_mantenido = 0;
+        }
+        else if (joy != 0 && joy != 'r')
+        {
+            ciclos_mantenido++;
+            if (ciclos_mantenido * 50 >= REPETIR_MS)
+            {
+                procesar_tecla(joy);
+                ciclos_mantenido = 0;
+            }
         }
         anterior = joy;
 
