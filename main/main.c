@@ -29,6 +29,12 @@
 #define UMBRAL_BAJO   1000
 #define UMBRAL_ALTO   3000
 
+/* Pone 0 si todavia no conectaste el joystick. Con los pines al aire
+ * el ADC lee valores al azar y el jugador se "mueve solo" (y aparecen
+ * muchos carteles de Movimiento bloqueado). Con 0 se juega solo con
+ * el teclado. */
+#define USAR_JOYSTICK 1
+
 #define ANCHO 20
 #define ALTO 10
 
@@ -54,6 +60,7 @@ int px = 1;
 int py = 1;
 int movimientos = 0;
 int terminado = 0;
+int aviso_mostrado = 0;   /* 1 si ya se mostro "Movimiento bloqueado" */
 
 static adc_oneshot_unit_handle_t adc;
 
@@ -79,6 +86,7 @@ void reiniciar()
     py = 1;
     movimientos = 0;
     terminado = 0;
+    aviso_mostrado = 0;
 
     imprimir_laberinto();
 }
@@ -97,14 +105,21 @@ void mover(int dx, int dy)
 
     if (laberinto[ny][nx] == '|')
     {
-        /* Redibujamos el laberinto (eso borra la pantalla) y abajo
-         * ponemos el aviso. Asi el cartel queda siempre en el mismo
-         * lugar en vez de ir agregando lineas nuevas. */
-        imprimir_laberinto();
-        printf("\nMovimiento bloqueado\n");
-        fflush(stdout);
+        /* El aviso se muestra una sola vez. Si seguis chocando la
+         * misma pared no se vuelve a escribir; se vuelve a mostrar
+         * recien despues de un movimiento valido. */
+        if (!aviso_mostrado)
+        {
+            imprimir_laberinto();
+            printf("\nMovimiento bloqueado\n");
+            fflush(stdout);
+            aviso_mostrado = 1;
+        }
         return;
     }
+
+    /* Movimiento valido: la proxima vez que choques se vuelve a avisar */
+    aviso_mostrado = 0;
 
     if (laberinto[ny][nx] == 'M')
     {
@@ -209,7 +224,10 @@ void app_main(void)
 {
     setvbuf(stdin, NULL, _IONBF, 0);
 
-    iniciar_joystick();
+    if (USAR_JOYSTICK)
+    {
+        iniciar_joystick();
+    }
     reiniciar();
 
     int anterior = 0;
@@ -228,7 +246,7 @@ void app_main(void)
         /* 2) Joystick. Solo movemos cuando cambia de posicion, asi un
          *    empujon = un paso. Para dar otro paso hay que volver al
          *    centro (o mover hacia otro lado). */
-        int joy = leer_joystick();
+        int joy = USAR_JOYSTICK ? leer_joystick() : 0;
         if (joy != 0 && joy != anterior)
         {
             procesar_tecla(joy);
