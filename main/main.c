@@ -5,6 +5,13 @@
 #include "esp_err.h"
 #include "esp_adc/adc_oneshot.h"
 
+/* Funciones escritas en assembler RISC-V (archivo led.S).
+ * Manejan el LED de la placa (GPIO8) escribiendo directo en los
+ * registros del GPIO, sin pasar por el driver de ESP-IDF. */
+void led_iniciar(void);
+void led_encender(void);
+void led_apagar(void);
+
 /* ------------------------------------------------------------------
  * CONEXION DEL JOYSTICK (modulo tipico KY-023) A LA ESP32-C3
  *
@@ -86,6 +93,7 @@ void reiniciar()
     terminado = 0;
     aviso_mostrado = 0;
 
+    led_apagar();        /* partida nueva: LED apagado */
     printf("\033[2J");   /* solo al reiniciar borramos toda la pantalla */
     imprimir_laberinto();
 }
@@ -114,6 +122,11 @@ void mover(int dx, int dy)
             fflush(stdout);
             aviso_mostrado = 1;
         }
+
+        /* Parpadeo corto del LED en cada choque */
+        led_encender();
+        vTaskDelay(150 / portTICK_PERIOD_MS);
+        led_apagar();
         return;
     }
 
@@ -129,6 +142,7 @@ void mover(int dx, int dy)
         movimientos++;
         terminado = 1;
 
+        led_encender();   /* meta: el LED queda prendido hasta reiniciar */
         imprimir_laberinto();
         printf("\nLaberinto completado\n");
         printf("Cantidad de movimientos validos: %d\n", movimientos);
@@ -212,6 +226,7 @@ void app_main(void)
     setvbuf(stdin, NULL, _IONBF, 0);
 
     iniciar_joystick();
+    led_iniciar();
     reiniciar();
 
     int anterior = 0;
