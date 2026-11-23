@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
+#include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_err.h"
@@ -21,13 +23,14 @@ void led_apagar(void);
  *                         la salida pasa de 3.3 V y la lectura no sirve)
  *   VRx        ->  GPIO0 (ADC1 canal 0)
  *   VRy        ->  GPIO1 (ADC1 canal 1)
- *   SW         ->  (no se usa)
+ *   SW         ->  GPIO3 (boton de reinicio)
  *
  * En la ESP32-C3 solo el ADC1 (GPIO0 a GPIO4) es confiable para leer
  * valores analogicos. Si usas otros pines, cambia los defines de abajo.
  * ------------------------------------------------------------------ */
 #define JOY_CANAL_X   ADC_CHANNEL_0   /* GPIO0 */
 #define JOY_CANAL_Y   ADC_CHANNEL_1   /* GPIO1 */
+#define JOY_PIN_BOTON GPIO_NUM_3
 
 /* El ADC devuelve un numero entre 0 y 4095. Con el joystick quieto
  * da mas o menos 2048 (el centro). Si baja de UMBRAL_BAJO o sube de
@@ -87,7 +90,8 @@ void imprimir_laberinto()
     {
         printf("\033[H");
     }
-    printf("Mueve el joystick para jugar. Tecla R para reiniciar.%s\n\n", borrar_linea);
+    printf("Mueve el joystick para jugar. Boton o tecla R para reiniciar.%s\n\n",
+           borrar_linea);
 
     for (int i = 0; i < ALTO; i++)
     {
@@ -126,7 +130,7 @@ void mover(int dx, int dy)
 {
     if (terminado)
     {
-        printf("\nPartida terminada. Tecla R para reiniciar\n");
+        printf("\nPartida terminada. Boton o tecla R para reiniciar\n");
         fflush(stdout);
         return;
     }
@@ -175,7 +179,7 @@ void mover(int dx, int dy)
         imprimir_laberinto();
         printf("\nLaberinto completado\n");
         printf("Cantidad de movimientos validos: %d\n", movimientos);
-        printf("Tecla R para reiniciar\n");
+        printf("Boton o tecla R para reiniciar\n");
         fflush(stdout);
         return;
     }
@@ -189,7 +193,7 @@ void mover(int dx, int dy)
     imprimir_laberinto();
 }
 
-/* Configura el ADC1 para leer los dos ejes del joystick. */
+/* Configura el ADC1 para los ejes y una entrada digital para el boton. */
 void iniciar_joystick()
 {
     adc_oneshot_unit_init_cfg_t cfg_unidad = {
@@ -204,6 +208,34 @@ void iniciar_joystick()
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc, JOY_CANAL_X, &cfg_canal));
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc, JOY_CANAL_Y, &cfg_canal));
+
+    /* SW se conecta a GND al presionar. El pull-up mantiene el pin en 1
+     * cuando se suelta el boton o se deja SW desconectado. */
+    gpio_config_t cfg_boton = {
+        .pin_bit_mask = 1ULL << JOY_PIN_BOTON,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&cfg_boton));
+}
+
+static bool boton_reinicio_pulsado(void)
+{
+    static bool lectura_anterior;
+    static bool estado_estable;
+    bool presionado = gpio_get_level(JOY_PIN_BOTON) == 0;
+
+    /* Dos lecturas seguidas iguales filtran el rebote. Solo el paso de
+     * suelto a presionado dispara el reinicio. */
+    bool cambio_estable = presionado == lectura_anterior && presionado != estado_estable;
+    lectura_anterior = presionado;
+    if (cambio_estable)
+    {
+        estado_estable = presionado;
+    }
+    return cambio_estable && presionado;
 }
 
 /* Lee el joystick y devuelve una letra segun hacia donde esta inclinado:
@@ -291,17 +323,18 @@ void app_main(void)
          *    apreto nada devuelve EOF enseguida y seguimos con el
          *    joystick. Cualquier otra tecla se ignora. */
         int tecla = getchar();
-        if (tecla == 'r' || tecla == 'R')
-        {
-            reiniciar();
-        }
         clearerr(stdin);
+        bool pulsacion = boton_reinicio_pulsado();
 
         /* 2) Joystick. Solo movemos cuando cambia de posicion, asi un
          *    empujon = un paso. Para dar otro paso hay que volver al
          *    centro (o mover hacia otro lado). */
         int joy = leer_joystick();
-        if (joy != 0 && joy != anterior)
+        if (tecla == 'r' || tecla == 'R' || pulsacion)
+        {
+            procesar_accion('r');
+        }
+        else if (joy != 0 && joy != anterior)
         {
             procesar_accion(joy);
         }
