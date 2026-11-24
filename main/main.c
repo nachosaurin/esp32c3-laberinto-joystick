@@ -38,7 +38,7 @@ void led_apagar(void);
 #define UMBRAL_BAJO   1000
 #define UMBRAL_ALTO   3000
 
-/* Poner en 1 y recompilar para ver el ADC y los intentos de movimiento
+/* Poner en 1 y recompilar para ver los reinicios y los intentos de movimiento
  * en el monitor serie. En 0 se usa la salida normal del juego. */
 #ifndef DEBUG_LABERINTO
 #define DEBUG_LABERINTO 0
@@ -257,40 +257,11 @@ static Direccion leer_joystick(void)
 
     /* Si en tu joystick los ejes salen al reves (arriba mueve abajo,
      * etc.), intercambia las direcciones de estas lineas. */
-    Direccion direccion = CENTRO;
-    if (y < UMBRAL_BAJO) direccion = ARRIBA;
-    else if (y > UMBRAL_ALTO) direccion = ABAJO;
-    else if (x < UMBRAL_BAJO) direccion = IZQUIERDA;
-    else if (x > UMBRAL_ALTO) direccion = DERECHA;
-
-#if DEBUG_LABERINTO
-    /* Mostrar los cambios de direccion enseguida y una muestra por segundo
-     * si se mantiene la direccion o el joystick sigue en el centro. */
-    static Direccion direccion_anterior = CENTRO;
-    static bool primera_muestra = true;
-    static TickType_t ultima_muestra;
-    TickType_t ahora = xTaskGetTickCount();
-    if (primera_muestra || direccion != direccion_anterior ||
-        ahora - ultima_muestra >= pdMS_TO_TICKS(1000))
-    {
-        const char *nombre = "centro";
-        switch (direccion)
-        {
-            case CENTRO: break;
-            case ARRIBA: nombre = "arriba"; break;
-            case ABAJO: nombre = "abajo"; break;
-            case IZQUIERDA: nombre = "izquierda"; break;
-            case DERECHA: nombre = "derecha"; break;
-        }
-        DEBUG_LOG("ADC x=%d y=%d direccion=%s posicion=(%d,%d)\n",
-                  x, y, nombre, px, py);
-        direccion_anterior = direccion;
-        ultima_muestra = ahora;
-        primera_muestra = false;
-    }
-#endif
-
-    return direccion;
+    if (y < UMBRAL_BAJO) return ARRIBA;
+    if (y > UMBRAL_ALTO) return ABAJO;
+    if (x < UMBRAL_BAJO) return IZQUIERDA;
+    if (x > UMBRAL_ALTO) return DERECHA;
+    return CENTRO;
 }
 
 static void mover_segun_direccion(Direccion direccion)

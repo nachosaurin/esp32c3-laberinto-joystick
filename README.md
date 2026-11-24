@@ -33,22 +33,19 @@ y queda prendido al completar el laberinto. La logica del juego y el ADC siguen 
 
 ## Diagnóstico por consola serie
 
-Para ver qué lee la placa, cambiá `DEBUG_LABERINTO` de `0` a `1` en
-`main/main.c`, recompilá y cargá el programa. El monitor muestra los valores
-crudos de X e Y cuando cambia la dirección detectada y aproximadamente una
-vez por segundo mientras se mantiene. También muestra el origen, el destino
-y el contador de cada intento de movimiento. En este modo el tablero se
-imprime debajo del anterior para conservar las trazas en el historial.
+Para ver los reinicios y los intentos de movimiento, cambiá `DEBUG_LABERINTO`
+de `0` a `1` en `main/main.c`, recompilá y cargá el programa. El monitor
+muestra el origen y el destino de cada intento junto con el total de
+movimientos válidos. El tablero se imprime debajo del anterior para
+conservar las trazas en el historial.
 
 Ejemplo ilustrativo desde la posición inicial, inclinando primero a la
 derecha y después hacia arriba:
 
 ```text
-[debug] ADC x=3560 y=2040 direccion=derecha posicion=(1,1)
 [debug] Movimiento valido. (1,1) -> (2,1) validos=1
-[debug] ADC x=2040 y=610 direccion=arriba posicion=(2,1)
 [debug] Movimiento bloqueado por pared. (2,1) -> (2,0) validos=1
 ```
 
-Las lecturas exactas dependen del joystick. Con `DEBUG_LABERINTO 0` se
-desactivan las trazas y se recupera el redibujado normal del tablero.
+Con `DEBUG_LABERINTO 0` se desactivan las trazas y se recupera el redibujado
+normal del tablero.
