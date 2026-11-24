@@ -35,6 +35,18 @@ void led_apagar(void);
 #define UMBRAL_BAJO   1000
 #define UMBRAL_ALTO   3000
 
+/* Poner en 1 y recompilar para ver el ADC y los intentos de movimiento
+ * en el monitor serie. En 0 se usa la salida normal del juego. */
+#ifndef DEBUG_LABERINTO
+#define DEBUG_LABERINTO 0
+#endif
+
+#if DEBUG_LABERINTO
+#define DEBUG_LOG(...) printf("[debug] " __VA_ARGS__)
+#else
+#define DEBUG_LOG(...) ((void)0)
+#endif
+
 #define ANCHO 20
 #define ALTO 10
 
@@ -70,16 +82,23 @@ void imprimir_laberinto()
      * laberinto anterior. Antes usabamos \033[2J (borrar toda la
      * pantalla) en cada paso: la consola guardaba cada pantalla vieja
      * en el historial y se iba poniendo cada vez mas lenta. */
-    printf("\033[H");
-    printf("Mueve el joystick para jugar. Tecla R para reiniciar.\033[K\n\n");
+    const char *borrar_linea = DEBUG_LABERINTO ? "" : "\033[K";
+    if (!DEBUG_LABERINTO)
+    {
+        printf("\033[H");
+    }
+    printf("Mueve el joystick para jugar. Tecla R para reiniciar.%s\n\n", borrar_linea);
 
     for (int i = 0; i < ALTO; i++)
     {
-        printf("%s\033[K\n", laberinto[i]);   /* \033[K borra el resto de la linea */
+        printf("%s%s\n", laberinto[i], borrar_linea);
     }
 
-    printf("\nMovimientos validos: %d\033[K\n", movimientos);
-    printf("\033[J");   /* borra lo que haya quedado mas abajo (avisos viejos) */
+    printf("\nMovimientos validos: %d%s\n", movimientos, borrar_linea);
+    if (!DEBUG_LABERINTO)
+    {
+        printf("\033[J");   /* borra los avisos que quedaron mas abajo */
+    }
     fflush(stdout);
 }
 
@@ -94,7 +113,12 @@ void reiniciar()
     aviso_mostrado = 0;
 
     led_apagar();        /* partida nueva: LED apagado */
-    printf("\033[2J");   /* solo al reiniciar borramos toda la pantalla */
+    if (!DEBUG_LABERINTO)
+    {
+        printf("\033[2J");   /* solo al reiniciar borramos toda la pantalla */
+    }
+    DEBUG_LOG("Partida reiniciada. Posicion=(%d,%d) validos=%d\n",
+              px, py, movimientos);
     imprimir_laberinto();
 }
 
@@ -112,6 +136,9 @@ void mover(int dx, int dy)
 
     if (laberinto[ny][nx] == '|')
     {
+        DEBUG_LOG("Movimiento bloqueado por pared. (%d,%d) -> (%d,%d) validos=%d\n",
+                  px, py, nx, ny, movimientos);
+
         /* El aviso se muestra una sola vez. Si seguis chocando la
          * misma pared no se vuelve a escribir; se vuelve a mostrar
          * recien despues de un movimiento valido. */
@@ -132,6 +159,8 @@ void mover(int dx, int dy)
 
     /* Movimiento valido: la proxima vez que choques se vuelve a avisar */
     aviso_mostrado = 0;
+    DEBUG_LOG("Movimiento valido. (%d,%d) -> (%d,%d) validos=%d\n",
+              px, py, nx, ny, movimientos + 1);
 
     if (laberinto[ny][nx] == 'M')
     {
@@ -188,12 +217,37 @@ int leer_joystick()
 
     /* Si en tu joystick los ejes salen al reves (arriba mueve abajo,
      * etc.), intercambia las letras de estas lineas. */
-    if (y < UMBRAL_BAJO) return 'w';
-    if (y > UMBRAL_ALTO) return 's';
-    if (x < UMBRAL_BAJO) return 'a';
-    if (x > UMBRAL_ALTO) return 'd';
+    int direccion = 0;
+    if (y < UMBRAL_BAJO) direccion = 'w';
+    else if (y > UMBRAL_ALTO) direccion = 's';
+    else if (x < UMBRAL_BAJO) direccion = 'a';
+    else if (x > UMBRAL_ALTO) direccion = 'd';
 
-    return 0;
+#if DEBUG_LABERINTO
+    /* Mostrar los cambios de direccion enseguida y una muestra por segundo
+     * si se mantiene la direccion o el joystick sigue en el centro. */
+    static int direccion_anterior = -1;
+    static TickType_t ultima_muestra;
+    TickType_t ahora = xTaskGetTickCount();
+    if (direccion != direccion_anterior ||
+        ahora - ultima_muestra >= pdMS_TO_TICKS(1000))
+    {
+        const char *nombre = "centro";
+        switch (direccion)
+        {
+            case 'w': nombre = "arriba"; break;
+            case 's': nombre = "abajo"; break;
+            case 'a': nombre = "izquierda"; break;
+            case 'd': nombre = "derecha"; break;
+        }
+        DEBUG_LOG("ADC x=%d y=%d direccion=%s posicion=(%d,%d)\n",
+                  x, y, nombre, px, py);
+        direccion_anterior = direccion;
+        ultima_muestra = ahora;
+    }
+#endif
+
+    return direccion;
 }
 
 void procesar_accion(int accion)
