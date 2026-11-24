@@ -238,9 +238,17 @@ static bool boton_reinicio_pulsado(void)
     return cambio_estable && presionado;
 }
 
-/* Lee el joystick y devuelve una letra segun hacia donde esta inclinado:
- * 'w', 'a', 's', 'd' o 0 si esta en el centro. */
-int leer_joystick()
+typedef enum
+{
+    CENTRO,
+    ARRIBA,
+    ABAJO,
+    IZQUIERDA,
+    DERECHA
+} Direccion;
+
+/* Convierte las lecturas del ADC en una direccion del joystick. */
+static Direccion leer_joystick(void)
 {
     int x = 0;
     int y = 0;
@@ -248,61 +256,52 @@ int leer_joystick()
     adc_oneshot_read(adc, JOY_CANAL_Y, &y);
 
     /* Si en tu joystick los ejes salen al reves (arriba mueve abajo,
-     * etc.), intercambia las letras de estas lineas. */
-    int direccion = 0;
-    if (y < UMBRAL_BAJO) direccion = 'w';
-    else if (y > UMBRAL_ALTO) direccion = 's';
-    else if (x < UMBRAL_BAJO) direccion = 'a';
-    else if (x > UMBRAL_ALTO) direccion = 'd';
+     * etc.), intercambia las direcciones de estas lineas. */
+    Direccion direccion = CENTRO;
+    if (y < UMBRAL_BAJO) direccion = ARRIBA;
+    else if (y > UMBRAL_ALTO) direccion = ABAJO;
+    else if (x < UMBRAL_BAJO) direccion = IZQUIERDA;
+    else if (x > UMBRAL_ALTO) direccion = DERECHA;
 
 #if DEBUG_LABERINTO
     /* Mostrar los cambios de direccion enseguida y una muestra por segundo
      * si se mantiene la direccion o el joystick sigue en el centro. */
-    static int direccion_anterior = -1;
+    static Direccion direccion_anterior = CENTRO;
+    static bool primera_muestra = true;
     static TickType_t ultima_muestra;
     TickType_t ahora = xTaskGetTickCount();
-    if (direccion != direccion_anterior ||
+    if (primera_muestra || direccion != direccion_anterior ||
         ahora - ultima_muestra >= pdMS_TO_TICKS(1000))
     {
         const char *nombre = "centro";
         switch (direccion)
         {
-            case 'w': nombre = "arriba"; break;
-            case 's': nombre = "abajo"; break;
-            case 'a': nombre = "izquierda"; break;
-            case 'd': nombre = "derecha"; break;
+            case CENTRO: break;
+            case ARRIBA: nombre = "arriba"; break;
+            case ABAJO: nombre = "abajo"; break;
+            case IZQUIERDA: nombre = "izquierda"; break;
+            case DERECHA: nombre = "derecha"; break;
         }
         DEBUG_LOG("ADC x=%d y=%d direccion=%s posicion=(%d,%d)\n",
                   x, y, nombre, px, py);
         direccion_anterior = direccion;
         ultima_muestra = ahora;
+        primera_muestra = false;
     }
 #endif
 
     return direccion;
 }
 
-void procesar_accion(int accion)
+static void mover_segun_direccion(Direccion direccion)
 {
-    if (accion == 'w')
+    switch (direccion)
     {
-        mover(0, -1);
-    }
-    else if (accion == 's')
-    {
-        mover(0, 1);
-    }
-    else if (accion == 'a')
-    {
-        mover(-1, 0);
-    }
-    else if (accion == 'd')
-    {
-        mover(1, 0);
-    }
-    else if (accion == 'r')
-    {
-        reiniciar();
+        case CENTRO: break;
+        case ARRIBA: mover(0, -1); break;
+        case ABAJO: mover(0, 1); break;
+        case IZQUIERDA: mover(-1, 0); break;
+        case DERECHA: mover(1, 0); break;
     }
 }
 
@@ -315,7 +314,7 @@ void app_main(void)
     led_iniciar();
     reiniciar();
 
-    int anterior = 0;
+    Direccion anterior = CENTRO;
 
     while (1)
     {
@@ -329,16 +328,16 @@ void app_main(void)
         /* 2) Joystick. Solo movemos cuando cambia de posicion, asi un
          *    empujon = un paso. Para dar otro paso hay que volver al
          *    centro (o mover hacia otro lado). */
-        int joy = leer_joystick();
+        Direccion direccion = leer_joystick();
         if (tecla == 'r' || tecla == 'R' || pulsacion)
         {
-            procesar_accion('r');
+            reiniciar();
         }
-        else if (joy != 0 && joy != anterior)
+        else if (direccion != CENTRO && direccion != anterior)
         {
-            procesar_accion(joy);
+            mover_segun_direccion(direccion);
         }
-        anterior = joy;
+        anterior = direccion;
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
