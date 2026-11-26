@@ -60,7 +60,7 @@ led_iniciar:
     .type   led_encender, @function
 led_encender:
     li   t0, GPIO_OUT_W1TC_REG
-    li   t1, LED_MASK
+    li   t1, LED_MASK //paso 3 hacemos esto 
     sw   t1, 0(t0)
     ret
     .size led_encender, . - led_encender
