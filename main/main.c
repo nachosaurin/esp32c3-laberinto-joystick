@@ -14,6 +14,11 @@ void led_iniciar(void);
 void led_encender(void);
 void led_apagar(void);
 
+/* Rutina en assembler RISC-V (archivo joystick.S): recibe la lectura de
+ * los dos ejes y decide hacia donde esta inclinado el joystick.
+ * Devuelve 0 = centro, 1 = arriba, 2 = abajo, 3 = izquierda, 4 = derecha. */
+int joystick_direction_asm(int x, int y, int center_x, int center_y, int deadzone);
+
 /* ------------------------------------------------------------------
  * CONEXION DEL JOYSTICK (modulo tipico KY-023) A LA ESP32-C3
  *
@@ -30,10 +35,10 @@ void led_apagar(void);
 #define JOY_PIN_BOTON GPIO_NUM_3
 
 /* El ADC devuelve un numero entre 0 y 4095. Con el joystick quieto
- * da mas o menos 2048 (el centro). Si baja de UMBRAL_BAJO o sube de
- * UMBRAL_ALTO consideramos que lo inclinaste hacia ese lado. */
-#define UMBRAL_BAJO   1000
-#define UMBRAL_ALTO   3000
+ * da mas o menos 2048 (el centro). Si la lectura se aleja del centro
+ * mas que ZONA_MUERTA consideramos que lo inclinaste hacia ese lado. */
+#define CENTRO_ADC    2048
+#define ZONA_MUERTA   1000
 
 #define ANCHO 20
 #define ALTO 10
@@ -213,7 +218,9 @@ static bool boton_reinicio_pulsado(void)
 }
 
 /* Lee el joystick y devuelve una letra segun hacia donde esta inclinado:
- * 'w', 'a', 's', 'd' o 0 si esta en el centro. */
+ * 'w', 'a', 's', 'd' o 0 si esta en el centro.
+ * La lectura del ADC se hace en C (driver de ESP-IDF) y la decision de
+ * la direccion la toma la rutina de assembler joystick_direction_asm. */
 int leer_joystick()
 {
     int x = 0;
@@ -221,12 +228,14 @@ int leer_joystick()
     adc_oneshot_read(adc, JOY_CANAL_X, &x);
     adc_oneshot_read(adc, JOY_CANAL_Y, &y);
 
+    int direccion = joystick_direction_asm(x, y, CENTRO_ADC, CENTRO_ADC, ZONA_MUERTA);
+
     /* Si en tu joystick los ejes salen al reves (arriba mueve abajo,
      * etc.), intercambia las letras de estas lineas. */
-    if (y < UMBRAL_BAJO) return 'w';
-    if (y > UMBRAL_ALTO) return 's';
-    if (x < UMBRAL_BAJO) return 'a';
-    if (x > UMBRAL_ALTO) return 'd';
+    if (direccion == 1) return 'w';
+    if (direccion == 2) return 's';
+    if (direccion == 3) return 'a';
+    if (direccion == 4) return 'd';
 
     return 0;
 }
