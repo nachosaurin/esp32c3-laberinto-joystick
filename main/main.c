@@ -24,9 +24,6 @@ void led_apagar(void);
  *   VRx        ->  GPIO0 (ADC1 canal 0)
  *   VRy        ->  GPIO1 (ADC1 canal 1)
  *   SW         ->  GPIO3 (boton de reinicio)
- *
- * En la ESP32-C3 solo el ADC1 (GPIO0 a GPIO4) es confiable para leer
- * valores analogicos. Si usas otros pines, cambia los defines de abajo.
  * ------------------------------------------------------------------ */
 #define JOY_CANAL_X   ADC_CHANNEL_0   /* GPIO0 */
 #define JOY_CANAL_Y   ADC_CHANNEL_1   /* GPIO1 */
@@ -65,7 +62,9 @@ int movimientos = 0;
 int terminado = 0;
 int aviso_mostrado = 0;   /* 1 si ya se mostro "Movimiento bloqueado" */
 
-static adc_oneshot_unit_handle_t adc;
+static adc_oneshot_unit_handle_t adc; //guarda la referencia al conversor analogico para poder leerlo
+                                    // desde cualquier funcion
+
 
 void imprimir_laberinto()
 {
@@ -73,10 +72,10 @@ void imprimir_laberinto()
      * laberinto anterior. Antes usabamos \033[2J (borrar toda la
      * pantalla) en cada paso: la consola guardaba cada pantalla vieja
      * en el historial y se iba poniendo cada vez mas lenta. */
-    printf("\033[H");
+    printf("\033[H"); //mueve el cursor a la esquina inicial y va actualizando la posicion del jugador
     printf("Mueve el joystick para jugar. Boton o tecla R para reiniciar.\033[K\n\n");
 
-    for (int i = 0; i < ALTO; i++)
+    for (int i = 0; i < ALTO; i++) //vamos recorriendo las filas hasta la ultima. cuando 1 = 10 se termina
     {
         printf("%s\033[K\n", laberinto[i]);   /* \033[K borra el resto de la linea */
     }
@@ -86,7 +85,8 @@ void imprimir_laberinto()
     fflush(stdout);
 }
 
-void reiniciar()
+void reiniciar() //deja todo como estaba antes de arrancar el juego. Ahora solo borra la pantalla
+                // al reiniciar el juego (no hacemos el truco del cursor)
 {
     memcpy(laberinto, laberinto_inicial, sizeof(laberinto));
 
@@ -118,7 +118,8 @@ void mover(int dx, int dy)
         /* El aviso se muestra una sola vez. Si seguis chocando la
          * misma pared no se vuelve a escribir; se vuelve a mostrar
          * recien despues de un movimiento valido. */
-        if (!aviso_mostrado)
+        if (!aviso_mostrado) //hace que si te quedas chocanco contra la pared varias veces, la  
+                            // consola no se llena de carteles repetidos
         {
             imprimir_laberinto();
             printf("\nMovimiento bloqueado\n");
@@ -127,9 +128,11 @@ void mover(int dx, int dy)
         }
 
         /* Parpadeo corto del LED en cada choque */
-        led_encender();
-        vTaskDelay(150 / portTICK_PERIOD_MS);
-        led_apagar();
+        led_encender(); //rutina de assembler --> pone el pin en bajo --> 0
+        vTaskDelay(150 / portTICK_PERIOD_MS); //lo prende por 150 ms. Es mejor que el delay() porque puede poner 
+                                              //a dormir una tarea por 150 ms y liberador procesador para otra cosa
+
+        led_apagar(); //rutina de assebmbler --> pone el pin en alto --> 1
         return;
     }
 
@@ -167,7 +170,8 @@ void mover(int dx, int dy)
 void iniciar_joystick()
 {
     adc_oneshot_unit_init_cfg_t cfg_unidad = {
-        .unit_id = ADC_UNIT_1,
+        .unit_id = ADC_UNIT_1, // enciende el conversor de señales analogicas a digitales.  
+                                //one-shot porque  toma una lectura puntal cada vez que necesitamos
     };
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&cfg_unidad, &adc));
 
@@ -181,7 +185,7 @@ void iniciar_joystick()
 
     /* SW se conecta a GND al presionar. El pull-up mantiene el pin en 1
      * cuando se suelta el boton o se deja SW desconectado. */
-    gpio_config_t cfg_boton = {
+    gpio_config_t cfg_boton = { //esto es para config del SW
         .pin_bit_mask = 1ULL << JOY_PIN_BOTON,
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
@@ -193,8 +197,8 @@ void iniciar_joystick()
 
 static bool boton_reinicio_pulsado(void)
 {
-    static bool lectura_anterior;
-    static bool estado_estable;
+    static bool lectura_anterior; //guarda lo que lei la ultima vez
+    static bool estado_estable; //guarda si el boton ya estaba suelto o apretdo 
     bool presionado = gpio_get_level(JOY_PIN_BOTON) == 0;
 
     /* Dos lecturas seguidas iguales filtran el rebote. Solo el paso de
@@ -262,7 +266,7 @@ void app_main(void)
 
     int anterior = 0;
 
-    while (1)
+    while (1) //lo unico que apaga la placa es que la desenchufe
     {
         /* 1) Tecla R para reiniciar. getchar() NO espera: si no se
          *    apreto nada devuelve EOF enseguida y seguimos con el
@@ -275,7 +279,7 @@ void app_main(void)
          *    empujon = un paso. Para dar otro paso hay que volver al
          *    centro (o mover hacia otro lado). */
         int joy = leer_joystick();
-        if (tecla == 'r' || tecla == 'R' || pulsacion)
+        if (tecla == 'r' || tecla == 'R' || pulsacion)//si no se apretan las 'r' o el sw, se mueve el personaje
         {
             procesar_accion('r');
         }
