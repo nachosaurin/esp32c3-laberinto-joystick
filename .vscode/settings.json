@@ -5,8 +5,10 @@
     "board/esp32c3-builtin.cfg"
   ],
   "idf.portWin": "COM3",
-  "idf.currentSetup": "C:\\Espressif\\frameworks\\esp-idf-v5.2.2",
+  "idf.currentSetup": "C:/Espressif/frameworks/esp-idf-v5.2.2/",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32c3"
-  }
+  },
+  "idf.port": "COM10",
+  "idf.flashType": "UART"
 }
